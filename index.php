@@ -1,105 +1,102 @@
 <?php
-// Mostrar errores para desarrollo
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
-
-// Incluir funciones necesarias
-include('inc/funciones.inc.php');
-include('secure/ips.php');
-
-// Configuración
-$metodo_permitido = "POST";
-$archivo_log = "../logs/log.log";
-$dominio_autorizado = "localhost";
-$usuario_autorizado = "admin";
-$password_autorizado = "admin";
-
-// Variables seguras desde $_SERVER
-$referer = $_SERVER["HTTP_REFERER"] ?? 'No Referer';
-$user_agent = $_SERVER["HTTP_USER_AGENT"] ?? 'Unknown';
-$remote_addr = $_SERVER["REMOTE_ADDR"] ?? '0.0.0.0';
-$request_uri = $_SERVER["REQUEST_URI"] ?? '/';
-$host = $_SERVER["HTTP_HOST"] ?? 'localhost';
-
-// Validar IP autorizada
-$ip_autorizada = ip_in_ranges($remote_addr, $rango);
-
-// Verificar que haya un REFERER
-if (!empty($_SERVER["HTTP_REFERER"])) {
-
-    // Validar dominio en REFERER
-    if (strpos($referer, $dominio_autorizado) !== false) {
-
-        // Validar IP
-        if ($ip_autorizada) {
-
-            // Validar método HTTP
-            if ($_SERVER["REQUEST_METHOD"] === $metodo_permitido) {
-
-                // Limpiar entradas
-                $valor_usuario = isset($_POST["txt_user"]) ? htmlspecialchars(stripslashes(trim($_POST["txt_user"])), ENT_QUOTES) : "";
-                $valor_password = isset($_POST["txt_pass"]) ? htmlspecialchars(stripslashes(trim($_POST["txt_pass"])), ENT_QUOTES) : "";
-
-                // Verificar que no estén vacíos
-                if (strlen($valor_usuario) > 0 && strlen($valor_password) > 0) {
-
-                    // Validar patrón alfanumérico (1-10 caracteres)
-                    $usuario_valido = preg_match('/^[a-zA-Z0-9]{1,10}$/', $valor_usuario);
-                    $password_valido = preg_match('/^[a-zA-Z0-9]{1,10}$/', $valor_password);
-
-                    if ($usuario_valido && $password_valido) {
-
-                        // Validar credenciales
-                        if ($valor_usuario === $usuario_autorizado && $valor_password === $password_autorizado) {
-                            echo "HOLA MUNDO";
-                            crear_editar_log($archivo_log, "EL CLIENTE INICIÓ SESIÓN SATISFACTORIAMENTE", 1, $remote_addr, $referer, $user_agent);
-                        } else {
-                            crear_editar_log($archivo_log, "CREDENCIALES INCORRECTAS ENVIADAS HACIA //{$host}{$request_uri}", 2, $remote_addr, $referer, $user_agent);
-                            echo "Credenciales incorrectas. Redireccionando...";
-                            echo "<meta http-equiv='refresh' content='3;url=/?status=7'>";
-                            exit;
-                        }
-
-                    } else {
-                        crear_editar_log($archivo_log, "ENVÍO DEL FORMULARIO CON CARACTERES NO SOPORTADOS", 3, $remote_addr, $referer, $user_agent);
-                        echo "Datos con caracteres no válidos. Redireccionando...";
-                        echo "<meta http-equiv='refresh' content='3;url=/?status=6'>";
-                        exit;
-                    }
-
-                } else {
-                    crear_editar_log($archivo_log, "ENVÍO DE CAMPOS VACÍOS AL SERVIDOR", 2, $remote_addr, $referer, $user_agent);
-                    echo "Campos vacíos. Redireccionando...";
-                    echo "<meta http-equiv='refresh' content='3;url=/?status=5'>";
-                    exit;
-                }
-
-            } else {
-                crear_editar_log($archivo_log, "ENVÍO DE MÉTODO NO AUTORIZADO", 2, $remote_addr, $referer, $user_agent);
-                echo "Método HTTP no permitido. Redireccionando...";
-                echo "<meta http-equiv='refresh' content='3;url=/?status=4'>";
-                exit;
-            }
-
-        } else {
-            crear_editar_log($archivo_log, "DIRECCIÓN IP NO AUTORIZADA", 2, $remote_addr, $referer, $user_agent);
-            echo "Su dirección IP no está autorizada para visitar esta página. Será redirigido a un sitio seguro...";
-            echo "<meta http-equiv='refresh' content='3;url=/?status=3'>";
-            exit;
-        }
-
-    } else {
-        crear_editar_log($archivo_log, "REFERER NO AUTORIZADO", 2, $remote_addr, $referer, $user_agent);
-        echo "Origen de la solicitud no autorizado. Redireccionando...";
-        echo "<meta http-equiv='refresh' content='3;url=/?status=2'>";
-        exit;
-    }
-
-} else {
-    crear_editar_log($archivo_log, "INTENTO DE ACCESO DIRECTO SIN REFERER", 2, $remote_addr, $referer, $user_agent);
-    echo "Acceso directo no permitido. Redireccionando...";
-    echo "<meta http-equiv='refresh' content='3;url=/?status=1'>";
-    exit;
+include("core/inc/funciones.inc.php");
+include("core/secure/ips.php");
+$archivo = "./logs/log.log";
+$ip = ip_in_ranges($_SERVER['REMOTE_ADDR'], $rango);
+?>
+<!DOCTYPE html>
+<html lang="es-SV">
+<head>
+    <title>Inicio de sesión</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/bootstrap.css">
+    <link href="fonts/fontawesome/css/all.css" rel="stylesheet" />
+    <script type="text/javascript" src="js/jquery-3.7.1.min.js"></script>
+    <script type="text/javascript" src="js/bootstrap.js"></script>
+    <script type="text/javascript" src="js/sweetalert2.all.js"></script>
+    <script type="text/javascript" src="fonts/fontawesome/js/all.js"></script>
+</head>
+<body>
+<?php
+$visible = false;
+$texto = "";
+$status = (array_key_exists("status", $_GET)) ? $_GET["status"] : "";
+switch ($status) {
+    case "1":
+        $texto = "Por favor, utilizar el formulario para iniciar sesión";
+        $visible = true;
+        break;
+    case "2":
+        $texto = "Las peticiones son aceptadas únicamente desde nuestro dominio oficial";
+        $visible = true;
+        break;
+    case "3":
+        $texto = "Lo siento, su dirección IP no está autorizada para continuar";
+        $visible = true;
+        break;
+    case "4":
+        $texto = "Se ha detectado un método no válido enviado hacia el servidor";
+        $visible = true;
+        break;
+    case "5":
+        $texto = "No se han recibido los datos completos del formulario, al menos un campo está vacío";
+        $visible = true;
+        break;
+    case "6":
+        $texto = "Se han detectado caracteres no válidos en los datos enviados";
+        $visible = true;
+        break;
+    case "7":
+        $texto = "Las credenciales ingresadas son incorrectas";
+        $visible = true;
+        break;
+    default:
+        $texto = "";
+        $visible = false;
+        break;
 }
 ?>
+<div class="alert alert-warning <?php echo ($visible === true) ? "" : "d-none"; ?>" role="alert">
+    <b><?php echo ($texto); ?></b>
+</div>
+<?php
+if ($ip === true) {
+    $referer = array_key_exists("HTTP_REFERER", $_SERVER) ? $_SERVER["HTTP_REFERER"] : "SIN REFERER";
+    crear_editar_log($archivo, "El archivo " . __FILE__ . " ha sido cargado", 0, $_SERVER['REMOTE_ADDR'], $referer, $_SERVER["HTTP_USER_AGENT"]);
+?>
+    <div class="form-row">
+        <div class="form-group col-md-5 text-center">
+            <img src="media/logo/logo_corporativo.png" class="mx-auto d-block" id="img" width="65%" height="auto"/>
+        </div>
+        <div class="form-group col-md-5 ml-4 mr-4 justify-content-center align-self-center">
+            <h1>Diseñando Estrategias para la Recuperación y Migración de Base de Datos (RBK0)</h1>
+            <form name="frm_iniciar_sesion" id="frm_iniciar_sesion" action="core/process.php" method="post">
+                <div class="form-group">
+                    <label for="txt_user">Usuario:</label>
+                    <input type="text" class="form-control" id="txt_user" name="txt_user" aria-describedby="txt_userHelp" maxlength="10" required>
+                    <small id="txt_userHelp" class="form-text text-muted">Digite un usuario (campo obligatorio).</small>
+                </div>
+                <div class="form-group">
+                    <label for="txt_pass">Contraseña:</label>
+                    <input type="password" class="form-control" id="txt_pass" name="txt_pass" aria-describedby="txt_passHelp" maxlength="10" required>
+                    <small id="txt_passHelp" class="form-text text-muted">La contraseña es obligatoria.</small>
+                </div>
+                <button type="submit" id="btn_ingresar" name="btn_ingresar" class="btn btn-primary mx-auto d-block" value="ingresar">Iniciar sesión</button>
+            </form>
+        </div>
+    </div>
+<?php
+} else {
+    $referer = array_key_exists("HTTP_REFERER", $_SERVER) ? $_SERVER["HTTP_REFERER"] : "SIN REFERER";
+    $redirect = "https://www.ufg.edu.sv/";
+    echo("Su dirección IP no tiene permitida la visita a esta página, será redirigido en breves segundos a un sitio seguro");
+    crear_editar_log($archivo, "Dirección IP no autorizada ha cargado el archivo " . __FILE__ . " ha sido redirigido a: $redirect", 1, $_SERVER['REMOTE_ADDR'], $referer, $_SERVER["HTTP_USER_AGENT"]);
+    header("refresh:5; url=$redirect");
+}
+?>
+</body>
+</html>
